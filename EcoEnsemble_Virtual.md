@@ -37,6 +37,7 @@ with uncertainty.
 ``` r
 library(EcoEnsemble)
 library(ggplot2)
+library(dplyr)
 ```
 
 ## Defining Time and Species
@@ -250,6 +251,9 @@ model, using only the prior assumptions. \* sample_prior() generates a
 sample from that prior model using the observations and simulator
 structure. \* plot() visualizes the prior predictive distribution.
 
+Figure 1 shows wide uncertainty because the model has not yet been
+fitted to the observations.
+
 ``` r
 prior_fit <- prior_ensemble_model(priors = priors_mammals, M = 4, full_sample = TRUE)
 
@@ -274,9 +278,6 @@ dev.off()
 
 <img src="Mammal_Figure1.png" width="100%" />
 
-Figure 1 shows wide uncertainty because the model has not yet been
-fitted to the observations.
-
 ## Figure 2: Posterior Predictive Distribution
 
 This section produces the posterior predictive figure.
@@ -285,6 +286,9 @@ This section produces the posterior predictive figure.
   and simulator outputs.
 - generate_sample() generates predictions from the fitted model.
 - plot() visualizes the posterior predictive distribution.
+
+Figure 2 shows reduced uncertainty after the model has incorporated the
+observed data.
 
 ``` r
 fit <- fit_ensemble_model(
@@ -312,13 +316,155 @@ dev.off()
 
 <img src="Mammal_Figure2.png" width="100%" />
 
-Figure 2 shows reduced uncertainty after the model has incorporated the
-observed data.
+## Remote Sensing Time Series Representation
+
+While EcoEnsemble provides a model-based approach that combines multiple
+simulators, it is also useful to examine a simpler representation of
+time-series data.
+
+In this section, we simulate a remote sensing variable (NDVI) to
+demonstrate how trends and uncertainty can be visualized directly
+without using an ensemble model.
+
+### Simulate Remote Sensing Data
+
+``` r
+set.seed(123)
+
+years_ndvi <- 2000:2020
+time_ndvi <- 1:length(years_ndvi)
+
+ndvi_data <- data.frame(
+  Year = rep(years_ndvi, each = 10),
+  NDVI = 0.5 + 
+         0.1 * sin(rep(time_ndvi, each = 10) / 3) +
+         rnorm(length(years_ndvi) * 10, 0, 0.03)
+)
+```
+
+This code simulates a remote sensing variable (NDVI), which represents
+vegetation health over time.
+
+- `set.seed(123)` ensures that the random values generated are
+  reproducible.
+
+- `years_ndvi` defines the time period.
+
+- `time_ndvi` is a numeric index used to generate trends.
+
+- `rep(years_ndvi, each = 10)` creates multiple observations per year,
+  representing measurements from different satellite pixels.
+
+- The NDVI values are generated using:
+
+  - a baseline value (`0.5`)
+  - a sinusoidal function (`sin(...)`) to create smooth temporal
+    variation
+  - random noise (`rnorm(...)`) to represent natural variability
+
+This results in realistic-looking time-series data with variation across
+years.
+
+### Compute Summary Statistics
+
+``` r
+ndvi_summary <- ndvi_data %>%
+  group_by(Year) %>%
+  summarise(
+    mean_ndvi = mean(NDVI),
+    sd_ndvi = sd(NDVI),
+    n = n(),
+    se = sd_ndvi / sqrt(n),
+    lower_ci = mean_ndvi - 1.96 * se,
+    upper_ci = mean_ndvi + 1.96 * se
+  )
+```
+
+This section summarizes the simulated NDVI data for each year.
+
+- `group_by(Year)` groups the data by time.
+- `mean(NDVI)` computes the average NDVI for each year.
+- `sd(NDVI)` measures variability in the data.
+- `n()` counts the number of observations per year.
+- `se` (standard error) estimates the uncertainty in the mean.
+- The confidence interval is calculated as:
+  - lower bound: `mean - 1.96 × se`
+  - upper bound: `mean + 1.96 × se`
+
+These statistics are used to quantify uncertainty around the mean NDVI
+values.
+
+### Plot Time Series with Confidence Intervals
+
+``` r
+ndvi_plot <- ggplot(ndvi_summary, aes(x = Year, y = mean_ndvi)) +
+  geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci),
+              fill = "darkgreen", alpha = 0.2) +
+  geom_line(color = "darkgreen", linewidth = 1.2) +
+  geom_point(color = "darkgreen", size = 2.5) +
+  labs(
+    title = "Simulated NDVI Time Series with Confidence Intervals",
+    x = "Year",
+    y = "NDVI"
+  ) +
+  theme_minimal(base_size = 14)
+
+ndvi_plot
+```
+
+![](EcoEnsemble_Virtual_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+This section visualizes the NDVI time series.
+
+- `ggplot(...)` initializes the plot using Year on the x-axis and mean
+  NDVI on the y-axis.
+- `geom_ribbon(...)` creates the shaded band representing the confidence
+  interval.
+- `geom_line(...)` draws the main trend line of the mean NDVI over time.
+- `geom_point(...)` adds points to show the mean value for each year.
+- `labs(...)` adds the title and axis labels.
+- `theme_minimal()` applies a clean visual style.
+
+The final plot shows both the trend and the uncertainty in the NDVI
+data.
+
+### Interpretation
+
+This figure shows the temporal evolution of a simulated vegetation index
+(NDVI). The solid line represents the mean NDVI value for each year,
+while The shaded region around the line represents the 95% confidence
+interval, indicating uncertainty in the estimates.
+
+The plot shows a smooth temporal pattern, with NDVI values increasing in
+the early years, followed by a period of decline, and then a gradual
+recovery. This reflects typical environmental variability that might be
+observed in vegetation dynamics over time.
+
+The relatively narrow confidence intervals indicate that the yearly
+estimates are fairly consistent across observations, suggesting low
+variability within each year.
+
+Unlike the EcoEnsemble approach, this visualization does not combine
+multiple models. Instead, it provides a direct and intuitive
+representation of how a single environmental variable changes over time,
+making it easier to interpret trends and variability without relying on
+complex model assumptions.
 
 ## Conclusion
 
 This example demonstrates how EcoEnsemble combines multiple simulator
 outputs and observations into a single ensemble prediction with
-uncertainty. Comparing the two figures shows how the model moves from a
-broad prior expectation to a more constrained posterior prediction after
-learning from the data.
+uncertainty.
+
+Figure 1 shows the model before it has learned from the data, while
+Figure 2 shows the model after it has been fitted. Comparing the two
+figures highlights how incorporating observations reduces uncertainty
+and refines predictions.
+
+The additional NDVI time-series example provides a simpler, data-driven
+perspective. While EcoEnsemble offers a powerful modeling framework, the
+NDVI plot shows that trends and uncertainty can also be communicated
+clearly using basic statistical summaries.
+
+Together, these approaches illustrate both complex and simple methods
+for understanding ecological data.

@@ -1,7 +1,8 @@
-EcoEnsemble with Synthetic Forest Mammal Populations
+EcoEnsemble and Remote Sensing Time Series: A Synthetic Forest Mammal
+and NDVI Example
 ================
 Iris Nana Obeng
-2026-04-20
+23-04-2026
 
 ## Introduction
 

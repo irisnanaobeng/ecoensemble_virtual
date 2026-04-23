@@ -1,4 +1,5 @@
-# EcoEnsemble with Synthetic Forest Mammal Populations
+# EcoEnsemble and Remote Sensing Time Series
+A Synthetic Forest Mammal and NDVI Example
 
 This project demonstrates how the **EcoEnsemble R package** can be used to combine multiple ecosystem model outputs into a single, uncertainty-aware prediction.
 
@@ -9,7 +10,6 @@ Instead of relying on a single model, EcoEnsemble integrates:
 * prior assumptions
 
 to produce a robust **ensemble prediction**.
-
 
 
 ##  Overview
@@ -60,18 +60,9 @@ This project illustrates:
 * Reduced uncertainty
 * More refined predictions
 
----
 
-## Outputs
 
-| Figure               | Description                       |
-| -------------------- | --------------------------------- |
-| `Mammal_Figure1.png` | Prior predictive distribution     |
-| `Mammal_Figure2.png` | Posterior predictive distribution |
-
----
-
-## ⚙️ Project Structure
+## Project Structure
 
 ```
 ├── EcoEnsemble_Mammals.R      # Main R script
@@ -89,6 +80,14 @@ This project illustrates:
 * `Mammal_Figure1.png`
 * `Mammal_Figure2.png`
 
+Outputs
+Figure 1 (Prior Predictive)
+Shows model behavior before observing data → high uncertainty
+Figure 2 (Posterior Predictive)
+Shows fitted model after incorporating observations → reduced uncertainty
+
+Key idea:
+Learning from data reduces uncertainty and improves predictions.
 
 ##  About the Data
 
@@ -107,21 +106,36 @@ The data used in this project are **synthetic (simulated)** and created to:
 * Uncertainty quantification
 
 
-##  Author
+Remote Sensing Time Series (NDVI)
 
-**Iris Nana Obeng**
+The second part of the project simulates a Normalized Difference Vegetation Index (NDVI) time series.
+
+NDVI is a commonly used satellite-derived measure of vegetation health.
+
+This project demonstrates two complementary approaches to analyzing ecological time-series data:
+
+EcoEnsemble – a model-based approach that combines multiple ecosystem simulators with observed data to produce ensemble predictions with uncertainty.
+
+Remote Sensing Time Series (NDVI) – a simple, data-driven approach that visualizes trends and uncertainty directly using statistical summaries.
 
 
-## Acknowledgements
+What the plot shows
+Line → mean NDVI over time
+Points → yearly estimates
+Shaded ribbon → 95% confidence interval
 
-* EcoEnsemble R package
-* Bayesian modeling framework (Stan)
+Key idea:
+Trends and uncertainty can be visualized directly without complex models.
 
+Conclusion
 
+This project demonstrates that:
 
-##  Future Extensions
+Complex models like EcoEnsemble provide powerful tools for combining multiple sources of information and making predictions.
+Simple time-series visualizations, such as NDVI plots, offer intuitive insights into trends and variability.
 
-* Apply EcoEnsemble to **real ecological datasets**
-* Compare performance across different ecosystems
-* Extend to **climate or epidemiological models**
+Author
+Iris Nana Obeng
+Global Change Ecology Student
+
 

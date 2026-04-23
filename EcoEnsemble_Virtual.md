@@ -1,0 +1,324 @@
+EcoEnsemble with Synthetic Forest Mammal Populations
+================
+Iris Nana Obeng
+2026-04-20
+
+## Introduction
+
+EcoEnsemble is an R package that combines multiple ecosystem models into
+a single ensemble prediction. Instead of relying on one model, it
+integrates outputs from different simulators together with observed
+data.
+
+In this example, EcoEnsemble is applied to **synthetic forest mammal
+populations** to demonstrate how the method works in a clear and
+interpretable way.
+
+The four species considered are:
+
+- Deer
+- Wolf
+- Moose
+- Black bear
+
+The four simulators used are:
+
+- Habitat model
+- Climate model
+- Population model
+- Predator-prey model
+
+Each simulator provides a different perspective on how populations
+evolve over time. EcoEnsemble combines these into one final prediction
+with uncertainty.
+
+## Loading Packages
+
+``` r
+library(EcoEnsemble)
+library(ggplot2)
+```
+
+## Defining Time and Species
+
+This section defines the time period and the species included in the
+synthetic example. These objects are later used to generate the virtual
+population trends and label the outputs.
+
+``` r
+set.seed(456)
+
+years <- 2000:2050
+n_years <- length(years)
+time <- 1:n_years
+
+species_names <- c("Deer", "Wolf", "Moose", "Black bear")
+predator_names <- c("Deer", "Wolf", "Moose")
+```
+
+- time is used to generate trends
+- species_names defines the four populations
+- predator_names is used for a simulator that only models three species
+
+## Synthetic True Population Trends
+
+This section creates the underlying synthetic population trends for the
+four mammal species. These trends represent the “true” values from which
+observations and simulator outputs are later generated.
+
+``` r
+deer_truth <- 10 + 0.03 * time + sin(time / 8)
+wolf_truth <- 10 + 0.4 * sin(time / 5)
+moose_truth <- 12 - 0.04 * time + 0.5 * cos(time / 10)
+bear_truth <- 11 + 0.01 * time - 0.4 * sin(time / 12)
+
+true_pop <- cbind(deer_truth, wolf_truth, moose_truth, bear_truth)
+colnames(true_pop) <- species_names
+```
+
+Each species behaves differently:
+
+- Deer slowly increases  
+- Wolf fluctuates  
+- Moose declines  
+- Black bear remains relatively stable
+
+## Observations (Partial Data)
+
+This section creates synthetic observations by adding random noise to
+the true population values for the early years only. This mimics a real
+situation where historical observations are available, but future values
+are unknown.
+
+`Sigma_obs_mammals` defines the observation uncertainty matrix, which
+assumes that each species has an independent observation error with a
+standard deviation of 0.15. This means that the observed values will
+deviate from the true population values by random amounts, reflecting
+measurement error or natural variability in the data.
+
+``` r
+obs_years <- 1:25
+obs_labels <- as.character(years[obs_years])
+
+mammal_obs <- true_pop[obs_years, ] +
+  matrix(rnorm(length(obs_years) * 4, sd = 0.15),
+         nrow = length(obs_years))
+
+mammal_obs <- as.data.frame(mammal_obs)
+colnames(mammal_obs) <- species_names
+rownames(mammal_obs) <- obs_labels
+
+Sigma_obs_mammals <- diag(rep(0.15^2, 4))
+colnames(Sigma_obs_mammals) <- species_names
+rownames(Sigma_obs_mammals) <- species_names
+```
+
+## Distinct Simulator Outputs
+
+This section creates different simulator outputs. Each simulator
+represents a different ecological perspective, so the trends are
+intentionally made different. The simulators are designed to behave
+differently so that the ensemble has clearly distinct inputs to combine.
+This allows EcoEnsemble to combine multiple competing model predictions.
+
+``` r
+sim_habitat <- cbind(
+  deer_truth + 0.8,
+  wolf_truth + 0.3,
+  moose_truth + 0.5,
+  bear_truth + 0.4
+)
+
+sim_climate <- cbind(
+  deer_truth - 0.6 + seq(0, -1, length.out = n_years),
+  wolf_truth - 0.2,
+  moose_truth - 1.0 + seq(0, -0.8, length.out = n_years),
+  bear_truth - 0.5
+)
+
+sim_population <- cbind(
+  deer_truth + 0.1 * sin(time / 3),
+  wolf_truth + 0.15 * cos(time / 4),
+  moose_truth + 0.1 * sin(time / 6),
+  bear_truth + 0.15 * cos(time / 5)
+)
+
+sim_predator <- cbind(
+  deer_truth + 1.2 * sin(time / 7),
+  wolf_truth + 0.8 * cos(time / 6),
+  moose_truth - 0.7 * sin(time / 8)
+)
+```
+
+## Add Noise and Format Data
+
+This section adds random variation to the simulator outputs and formats
+the data so that EcoEnsemble can read them correctly.
+
+The covariance matrices (`Sigma_habitat`, `Sigma_climate`, etc.)
+describe the uncertainty associated with each simulator. The diagonal
+entries represent the variance of each species’ output, while the
+off-diagonal entries are zero, indicating that the errors for different
+species are assumed to be independent within each simulator. The
+standard deviations (0.12, 0.15, etc.) reflect the level of uncertainty
+we expect from each simulator’s predictions.
+
+``` r
+sim_habitat <- sim_habitat + matrix(rnorm(n_years * 4, 0, 0.15), n_years)
+sim_climate <- sim_climate + matrix(rnorm(n_years * 4, 0, 0.15), n_years)
+sim_population <- sim_population + matrix(rnorm(n_years * 4, 0, 0.10), n_years)
+sim_predator <- sim_predator + matrix(rnorm(n_years * 3, 0, 0.20), n_years)
+
+sim_habitat <- as.data.frame(sim_habitat)
+sim_climate <- as.data.frame(sim_climate)
+sim_population <- as.data.frame(sim_population)
+sim_predator <- as.data.frame(sim_predator)
+
+colnames(sim_habitat) <- species_names
+colnames(sim_climate) <- species_names
+colnames(sim_population) <- species_names
+colnames(sim_predator) <- predator_names
+
+rownames(sim_habitat) <- as.character(years)
+rownames(sim_climate) <- as.character(years)
+rownames(sim_population) <- as.character(years)
+rownames(sim_predator) <- as.character(years)
+
+Sigma_habitat <- diag(rep(0.12^2, 4))
+Sigma_climate <- diag(rep(0.15^2, 4))
+Sigma_population <- diag(rep(0.10^2, 4))
+Sigma_predator <- diag(rep(0.13^2, 3))
+
+colnames(Sigma_habitat) <- species_names
+rownames(Sigma_habitat) <- species_names
+
+colnames(Sigma_climate) <- species_names
+rownames(Sigma_climate) <- species_names
+
+colnames(Sigma_population) <- species_names
+rownames(Sigma_population) <- species_names
+
+colnames(Sigma_predator) <- predator_names
+rownames(Sigma_predator) <- predator_names
+```
+
+## Define Priors
+
+This section defines the prior assumptions used by the EcoEnsemble
+model.
+
+- EnsemblePrior() creates the full prior object for the ensemble model.
+- IndSTPrior() defines the prior for the individual short-term
+  discrepancies of the simulators.
+- IndLTPrior() defines the prior for the individual long-term
+  discrepancies.
+- ShaSTPrior() defines the prior for the shared short-term discrepancy
+  across simulators. Together, these priors describe the uncertainty
+  structure of the model before fitting it to the observed data.
+
+``` r
+priors_mammals <- EnsemblePrior(
+  4,
+  ind_st_params = IndSTPrior(
+    "hierarchical",
+    list(-3, 1, 8, 4),
+    list(0.1, 0.1, 0.1, 0.1),
+    AR_params = c(2, 2)
+  ),
+  ind_lt_params = IndLTPrior("lkj", list(1, 1), 1),
+  sha_st_params = ShaSTPrior("lkj", list(1, 10), 1, AR_params = c(2, 2)),
+  sha_lt_params = 5
+)
+```
+
+## Understanding the Figures
+
+The figures are faceted time-series plots.
+
+- Each panel represents one species.
+- The x-axis shows the year.
+- The y-axis shows the simulated population value.
+- Colored lines show observations, simulator outputs, and the ensemble
+  prediction.
+- The shaded ribbon represents uncertainty.
+
+## Figure 1: Prior Predictive Distribution
+
+This section produces the prior predictive figure. \*
+prior_ensemble_model() creates the prior version of the EcoEnsemble
+model, using only the prior assumptions. \* sample_prior() generates a
+sample from that prior model using the observations and simulator
+structure. \* plot() visualizes the prior predictive distribution.
+
+``` r
+prior_fit <- prior_ensemble_model(priors = priors_mammals, M = 4, full_sample = TRUE)
+
+prior_samples <- sample_prior(
+  observations = list(mammal_obs, Sigma_obs_mammals),
+  simulators = list(
+    list(sim_habitat, Sigma_habitat, "Habitat model"),
+    list(sim_climate, Sigma_climate, "Climate model"),
+    list(sim_population, Sigma_population, "Population model"),
+    list(sim_predator, Sigma_predator, "Predator-prey model")
+  ),
+  priors = priors_mammals,
+  sam_priors = prior_fit,
+  num_samples = 1,
+  full_sample = TRUE
+)
+
+png("Mammal_Figure1.png", width = 1400, height = 900, res = 150)
+plot(prior_samples)
+dev.off()
+```
+
+<img src="Mammal_Figure1.png" width="100%" />
+
+Figure 1 shows wide uncertainty because the model has not yet been
+fitted to the observations.
+
+## Figure 2: Posterior Predictive Distribution
+
+This section produces the posterior predictive figure.
+
+- fit_ensemble_model() fits the EcoEnsemble model to the observed data
+  and simulator outputs.
+- generate_sample() generates predictions from the fitted model.
+- plot() visualizes the posterior predictive distribution.
+
+``` r
+fit <- fit_ensemble_model(
+  observations = list(mammal_obs, Sigma_obs_mammals),
+  simulators = list(
+    list(sim_habitat, Sigma_habitat, "Habitat model"),
+    list(sim_climate, Sigma_climate, "Climate model"),
+    list(sim_population, Sigma_population, "Population model"),
+    list(sim_predator, Sigma_predator, "Predator-prey model")
+  ),
+  priors = priors_mammals,
+  full_sample = TRUE,
+  chains = 1,
+  iter = 300,
+  warmup = 150,
+  cores = 1
+)
+
+samples <- generate_sample(fit, num_samples = 1)
+
+png("Mammal_Figure2.png", width = 1400, height = 900, res = 150)
+plot(samples)
+dev.off()
+```
+
+<img src="Mammal_Figure2.png" width="100%" />
+
+Figure 2 shows reduced uncertainty after the model has incorporated the
+observed data.
+
+## Conclusion
+
+This example demonstrates how EcoEnsemble combines multiple simulator
+outputs and observations into a single ensemble prediction with
+uncertainty. Comparing the two figures shows how the model moves from a
+broad prior expectation to a more constrained posterior prediction after
+learning from the data.

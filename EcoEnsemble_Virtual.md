@@ -415,6 +415,10 @@ ndvi_plot
 
 ![](EcoEnsemble_Virtual_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
+``` r
+ggsave("NDVI_TimeSeries.png", ndvi_plot, width = 8, height = 5)
+```
+
 This section visualizes the NDVI time series.
 
 - `ggplot(...)` initializes the plot using Year on the x-axis and mean
